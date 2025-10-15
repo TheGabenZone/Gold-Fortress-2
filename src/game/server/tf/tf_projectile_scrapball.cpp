@@ -105,24 +105,9 @@ void CTFProjectile_ScrapBall::RocketTouch( CBaseEntity *pOther )
 {
 	BaseClass::RocketTouch( pOther );
 
-	CTFPlayer *pScorer = ToTFPlayer( GetOwnerEntity() );
 	Vector vecOrigin = GetAbsOrigin();
 	float flRadius = GetRadius(); 
 
-	//Scan for buildings
-	CUtlVector<CBaseObject*> objVector;
-	for ( int i = 0; i < IBaseObjectAutoList::AutoList().Count(); ++i )
-	{
-		CBaseObject* pObj = static_cast<CBaseObject*>( IBaseObjectAutoList::AutoList()[i] );
-		if ( !pObj || pObj->GetTeamNumber() != GetTeamNumber() )
-			continue;
-
-		float flDist = (pObj->GetAbsOrigin() - vecOrigin).Length();
-		if ( flDist <= flRadius )
-		{
-			objVector.AddToTail( pObj );
-		}
-	}
 
 	//Scan for Players
 	/*CUtlVector<CTFPlayer*> playerVector;
@@ -140,33 +125,6 @@ void CTFProjectile_ScrapBall::RocketTouch( CBaseEntity *pOther )
 		}
 	}*/
 
-	int iAmmoPerShot = 0;
-	CALL_ATTRIB_HOOK_INT_ON_OTHER( GetLauncher(), iAmmoPerShot, mod_ammo_per_shot );
-	
-	int iValidObjCount = objVector.Count();
-	if ( iValidObjCount > 0 )
-	{
-		FOR_EACH_VEC( objVector, i )
-		{
-			CBaseObject *pObj = objVector[i];
-
-			//if (pObj->GetHealth() == pObj->GetMaxHealth())
-				//return;
-
-			bool bRepairHit = false;
-			bool bUpgradeHit = false;
-
-			bRepairHit = ( pObj->Command_Repair( pScorer, iAmmoPerShot, 1.f ) > 0 );
-
-			if ( !bRepairHit )
-			{
-				bUpgradeHit = pObj->CheckUpgradeOnHit( pScorer );
-			}
-		}
-		// Play an impact sound.
-		EmitSound( "Weapon_Arrow.ImpactFleshCrossbowHeal" );
-		//UTIL_Remove( this );
-	}
 }
 
 int CTFProjectile_ScrapBall::GiveMetal( CTFPlayer *pPlayer )
@@ -282,6 +240,53 @@ void CTFProjectile_ScrapBall::Explode( trace_t *pTrace, CBaseEntity *pOther )
 	if ( ( iNoSelfBlastDamage == 0 ) )
 	{
 		UTIL_DecalTrace( pTrace, "Scorch" );
+	}
+
+	//Fix buildings BLOCK
+
+	CTFPlayer *pScorer = ToTFPlayer( GetOwnerEntity() );
+
+	//Scan for buildings
+	CUtlVector<CBaseObject*> objVector;
+	for ( int i = 0; i < IBaseObjectAutoList::AutoList().Count(); ++i )
+	{
+		CBaseObject* pObj = static_cast<CBaseObject*>( IBaseObjectAutoList::AutoList()[i] );
+		if ( !pObj || pObj->GetTeamNumber() != GetTeamNumber() )
+			continue;
+
+		float flDist = (pObj->GetAbsOrigin() - vecOrigin).Length();
+		if ( flDist <= flRadius )
+		{
+			objVector.AddToTail( pObj );
+		}
+	}
+
+	int iAmmoPerShot = 0;
+	CALL_ATTRIB_HOOK_INT_ON_OTHER( GetLauncher(), iAmmoPerShot, mod_ammo_per_shot );
+	
+	int iValidObjCount = objVector.Count();
+	if ( iValidObjCount > 0 )
+	{
+		FOR_EACH_VEC( objVector, i )
+		{
+			CBaseObject *pObj = objVector[i];
+
+			//if (pObj->GetHealth() == pObj->GetMaxHealth())
+				//return;
+
+			bool bRepairHit = false;
+			bool bUpgradeHit = false;
+
+			bRepairHit = ( pObj->Command_Repair( pScorer, iAmmoPerShot, 1.f ) > 0 );
+
+			if ( !bRepairHit )
+			{
+				bUpgradeHit = pObj->CheckUpgradeOnHit( pScorer );
+			}
+		}
+		// Play an impact sound.
+		EmitSound( "Weapon_Arrow.ImpactFleshCrossbowHeal" );
+		//UTIL_Remove( this );
 	}
 
 	// Remove the rocket.
