@@ -39,6 +39,11 @@
 #include "bot/tf_bot.h"
 #endif
 
+#ifdef CLIENT_DLL
+#include "c_tf_player.h"
+#include "econ/econ_notifications.h"
+#endif 
+
 #if defined( _WIN32 ) || defined( POSIX )
 #include "vscript_server_nut.h"
 #endif
@@ -2014,6 +2019,31 @@ static void Script_ClientPrint( HSCRIPT hPlayer, int iDest, const char *pText )
 	}
 }
 
+
+static void Script_SendNotification( HSCRIPT hPlayer, float flLifetime, const char *pText )
+{
+	CBaseEntity *pBaseEntity = ToEnt( hPlayer );
+	CBasePlayer *pPlayer = dynamic_cast<CBasePlayer*>( pBaseEntity );
+	CRecipientFilter filter;
+	
+	if( hPlayer )
+	{
+		filter.AddRecipient( pPlayer );
+	}
+	else
+	{
+		filter.AddAllPlayers();
+	}
+
+	filter.MakeReliable();
+
+	UserMessageBegin( filter, "VS_SendNotification" );
+		WRITE_FLOAT( flLifetime );
+		WRITE_STRING( pText );
+	MessageEnd();
+}
+
+
 static void ScriptEmitAmbientSoundOn( const char *soundname, float volume, int soundlevel, int pitch, HSCRIPT entity )
 {
 	if ( !soundname || !*soundname )
@@ -2772,6 +2802,7 @@ bool VScriptServerInit()
 				ScriptRegisterFunctionNamed( g_pScriptVM, Script_GetFrameCount, "GetFrameCount", "Returns the engines current frame count" );
 
 				ScriptRegisterFunctionNamed( g_pScriptVM, Script_ClientPrint, "ClientPrint", "Print a client message" );
+				ScriptRegisterFunctionNamed( g_pScriptVM, Script_SendNotification, "SendNotification", "Send a notification" );
 				ScriptRegisterFunctionNamed( g_pScriptVM, ScriptEmitAmbientSoundOn, "EmitAmbientSoundOn", "Play named ambient sound on an entity." );
 				ScriptRegisterFunctionNamed( g_pScriptVM, ScriptStopAmbientSoundOn, "StopAmbientSoundOn", "Stop named ambient sound on an entity." );
 				ScriptRegisterFunctionNamed( g_pScriptVM, Script_SetFakeClientConVarValue, "SetFakeClientConVarValue", "Sets a USERINFO client ConVar for a fakeclient" );

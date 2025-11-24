@@ -212,7 +212,7 @@ ConVar tf_damage_multiplier_blue( "tf_damage_multiplier_blue", "1.0", FCVAR_CHEA
 ConVar tf_damage_multiplier_red( "tf_damage_multiplier_red", "1.0", FCVAR_CHEAT, "All incoming damage to a red player is multiplied by this value" );
 
 
-ConVar tf_max_voice_speak_delay( "tf_max_voice_speak_delay", "1.5", FCVAR_NOTIFY, "Max time after a voice command until player can do another one");
+ConVar cf_max_voice_speak_delay( "cf_max_voice_speak_delay", "1.5", FCVAR_NOTIFY, "Max time after a voice command until player can do another one");
 extern ConVar cf_voicespam;
 
 ConVar tf_allow_player_use( "tf_allow_player_use", "0", FCVAR_NOTIFY, "Allow players to execute +use while playing." );
@@ -21847,11 +21847,11 @@ void CTFPlayer::NoteSpokeVoiceCommand(const char* pszScenePlayed)
 	}
 	if (cf_voicespam.GetBool())
 	{
-		m_flNextVoiceCommandTime = gpGlobals->curtime + tf_max_voice_speak_delay.GetFloat();
+		m_flNextVoiceCommandTime = gpGlobals->curtime + cf_max_voice_speak_delay.GetFloat();
 	}
 	else
 	{
-		m_flNextVoiceCommandTime = gpGlobals->curtime + MIN(GetSceneDuration(pszScenePlayed), tf_max_voice_speak_delay.GetFloat());
+		m_flNextVoiceCommandTime = gpGlobals->curtime + MIN(GetSceneDuration(pszScenePlayed), cf_max_voice_speak_delay.GetFloat());
 
 		if (m_iVoiceSpamCounter > 0)
 		{
