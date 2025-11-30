@@ -588,8 +588,8 @@ matsys_controls.a
 raytrace.a
 tier1.a
 vgui_controls.a
-betterfortress_linux64
-betterfortress_win64.exe
+customfortress_linux64
+customfortress_win64.exe
 serverplugin_empty.so
 glshaders.cfg
 videoconfig_linux.cfg

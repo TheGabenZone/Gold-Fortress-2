@@ -1,1 +1,0 @@
-devtools\bin\vpc.exe /tf /define:SOURCESDK /define:DISCORD_RPC /define:TF_RAID_MODE /define:SDK_TEMP_PATCH +game /mksln betterfortress2.sln
