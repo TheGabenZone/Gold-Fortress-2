@@ -432,7 +432,7 @@
 				"damage penalty"
 				{
 					"attribute_class"	"mult_dmg"
-					"value"	"0.4"
+					"value"	"0.7"
 				}
 				//Smart or stupid?
 				"override projectile type"
@@ -1501,73 +1501,7 @@
 				}
 			}
 		}
-		"29006"
-		{
-			"name"	"Taunt: Streamsniper"
-			"prefab"	"cf_community_taunt"
-			"item_name"	"#WS_DDAN_Taunt_StreamSniper"
-			"item_description"	"#WS_DDAN_Taunt_StreamSniper_Desc"
-			"image_inventory"	"backpack/player/taunts/taunt_ddan_streamsniper"
-			"image_inventory_size_w"	"128"
-			"image_inventory_size_h"	"82"
-			"item_quality"		"community"
-			"moditem" "1"
-			"min_ilevel"	"1"
-			"max_ilevel"	"100"
-			"used_by_classes"
-			{
-				"sniper"	"1"
-			}
-			"attributes"
-			{
-				"taunt is press and hold"
-				{
-					"attribute_class"	"enable_misc2_holdtaunt"
-					"value"				"1"
-				}
-				"taunt turn speed"
-				{
-					"attribute_class"	"taunt_turn_speed"
-					"value"				"60"
-				}
-				"taunt success sound loop"
-				{
-					"attribute_class"	"taunt_success_sound_loop"
-					"value"				"Taunt_DDan.SFX_Pissing_Loop"
-				}
-				"taunt success sound loop offset"
-				{
-					"attribute_class"	"taunt_success_sound_loop_offset"
-					"value"				"1"
-				}
-				"is community contributed item"
-				{
-					"attribute_class"  "is_community_contributed_item"
-					"value"							"8"
-				}
-			}
-			"taunt"
-			{
-				"custom_taunt_scene_per_class"
-				{
-					"sniper"	"scenes/player/sniper/low/community/taunt_streamsniper.vcd"
-				}
-				"custom_taunt_outro_scene_per_class"
-				{
-					"sniper"	"scenes/player/sniper/low/community/taunt_streamsniper_end.vcd"
-				}
-				"custom_taunt_input_remap"
-				{
-					"IN_ATTACK"
-					{
-						"pressed"
-						{
-							"sniper"	"scenes/player/sniper/low/community/taunt_streamsniper_a1.vcd"
-						}
-					}
-				}
-			}
-		}
+		//"29006" - Reserved Taunt (missing particles)
 		//COSMETICS
 		"35099"
 		{
@@ -2452,10 +2386,10 @@
 					"attribute_class"	"mult_dmgtaken"
 					"value"	"1.20"
 				}
-				"crit mod disabled"
+				"melee range multiplier"
 				{
-					"attribute_class"	"mult_crit_chance"
-					"value"	"0"
+					"attribute_class"	"melee_range_multiplier"
+					"value"	"1.25"
 				}
 			}
 			"visuals"
@@ -2516,7 +2450,7 @@
 				"damage bonus"
 				{
 					"attribute_class"	"mult_dmg"
-					"value"	"1.46"
+					"value"	"1.25"
 				}
 				"fire rate penalty"
 				{
@@ -2527,6 +2461,11 @@
 				{
 					"attribute_class"	"mult_crit_chance"
 					"value"	"0"
+				}
+				"clip size bonus"
+				{
+					"attribute_class" 	"mult_clipsize"
+					"value" "1.5"
 				}
 			}
 			"visuals"
@@ -2709,7 +2648,7 @@
 			"equip_region"	"medal"
 			"image_inventory"	"backpack/player/items/all_class/bettermedal"
 			"image_inventory_size_w"	"128"
-			"image_inventory_size_h"	"82"
+			"image_inventory_size_h"	"128"
 			"item_quality"		"community"
 			"model_player"	"models/player/items/custommade/all_class/better_medal.mdl"
 			"min_ilevel"	"1"
