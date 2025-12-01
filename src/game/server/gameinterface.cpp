@@ -365,7 +365,6 @@ bool UTIL_HandleCheatCmdForPlayer( CBasePlayer *client )
 			//Back out without cheats 
 			if ( !sv_cheats->GetBool() )
 			{
-				ClientPrint( client, HUD_PRINTCONSOLE, "Can't use this cheat command, unless the server has sv_cheats set to 1.\n" );
 				return false;
 			}
 		}
@@ -375,7 +374,6 @@ bool UTIL_HandleCheatCmdForPlayer( CBasePlayer *client )
 			//The reason for this cvar is, so if it's active, users will know the owner is cheating
 			if ( !sv_cheats_server_owner.GetBool() )
 			{ 
-				ClientPrint( client, HUD_PRINTCONSOLE, "Can't use this cheat command, unless the server has sv_cheats set to 1.\n" );
 				return false;
 			}
 		}

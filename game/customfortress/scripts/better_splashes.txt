@@ -1,6 +1,6 @@
 "SplashTexts"
 {
-	"Better than ever!",
+	"Custom than ever!",
 	"Built different!",
 	"Community-driven experience!",
 	"The fortress evolved!",
