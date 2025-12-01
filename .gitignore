@@ -612,3 +612,10 @@ game/customfortress/cfg/cf_devtest.cfg
 game/customfortress/scripts/population/sentrybuster.pop
 game/customfortress/cfg/server_options.txt
 game/customfortress/cfg/airblast.cfg
+game/customfortress/cfg/user.scr
+game/customfortress/cfg/settings.scr
+game/customfortress/cfg/server_options.txt
+game/customfortress/cfg/server_blacklist.txt
+game/customfortress/cfg/local_loadout.txt
+game/customfortress/cfg/cf_devtest.cfg
+game/customfortress/cfg/airblast.cfg
