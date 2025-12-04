@@ -16,10 +16,16 @@
 #include <unistd.h>
 #include <cxxabi.h>
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/utsname.h>
 #include <errno.h>
+#else
+#include <Windows.h>
+#include <io.h>
+#define fsync _commit
+#define fileno _fileno
 #endif
 
 #include <time.h>
@@ -98,6 +104,9 @@ static const char* DemangleSymbol( const char* pszMangledName, char* pszBuffer, 
 //-----------------------------------------------------------------------------
 // Purpose: Initialize crash handler
 //-----------------------------------------------------------------------------
+// Static path for crash logs - set during Init()
+static char s_szCrashLogPath[512] = {0};
+
 void CServerCrashHandler::Init()
 {
 	if ( s_bInitialized )
@@ -121,15 +130,35 @@ void CServerCrashHandler::Init()
 	// Set version
 	V_snprintf( s_Metadata.szVersion, sizeof( s_Metadata.szVersion ), 
 		"Custom Fortress 2 Server" );
-	
+
 #ifdef POSIX
+	// Create crash log directory now (mkdir is not signal-safe)
+	// First create parent directory, then the crashes subdirectory
+	mkdir( "customfortress", 0755 );
+	mkdir( CRASH_LOG_DIR, 0755 );
+	
+	// Get absolute path for signal handler (getcwd may not be signal-safe)
+	if ( getcwd( s_szCrashLogPath, sizeof(s_szCrashLogPath) - 64 ) )
+	{
+		V_strncat( s_szCrashLogPath, "/" CRASH_LOG_DIR, sizeof(s_szCrashLogPath) );
+	}
+	else
+	{
+		V_strncpy( s_szCrashLogPath, CRASH_LOG_DIR, sizeof(s_szCrashLogPath) );
+	}
+	
 	if ( s_bEnabled )
 	{
 		InstallSignalHandlers();
 	}
+#else
+	// Windows: Create directory
+	CreateDirectoryA( "customfortress", NULL );
+	CreateDirectoryA( CRASH_LOG_DIR, NULL );
+	V_strncpy( s_szCrashLogPath, CRASH_LOG_DIR, sizeof(s_szCrashLogPath) );
 #endif
 	
-	Msg( "[ServerCrashHandler] Initialized. Crash logs will be written to %s/\n", CRASH_LOG_DIR );
+	Msg( "[ServerCrashHandler] Initialized. Crash logs will be written to %s/\n", s_szCrashLogPath );
 }
 
 //-----------------------------------------------------------------------------
@@ -187,13 +216,15 @@ void CServerCrashHandler::SetPlayerCount( int nPlayers )
 
 //-----------------------------------------------------------------------------
 // Purpose: Collect all metadata
+// Note: This function may be called from a signal handler, so it must use
+//       only async-signal-safe functions when possible
 //-----------------------------------------------------------------------------
 void CServerCrashHandler::CollectMetadata()
 {
 	// Generate unique crash ID
 	GenerateCrashID();
 	
-	// Get timestamp
+	// Get timestamp - time() and gmtime_r/localtime_r are signal-safe on most systems
 	time_t rawtime;
 	time( &rawtime );
 	struct tm timeinfo;
@@ -205,11 +236,16 @@ void CServerCrashHandler::CollectMetadata()
 	strftime( s_Metadata.szTimestamp, sizeof( s_Metadata.szTimestamp ), 
 		"%Y-%m-%d %H:%M:%S UTC", &timeinfo );
 	
-	// Get uptime
-	s_Metadata.nUptime = (int)Plat_FloatTime();
+	// Get uptime - use static start time to avoid calling Plat_FloatTime in signal handler
+	static time_t s_StartTime = 0;
+	if ( s_StartTime == 0 )
+	{
+		time( &s_StartTime );
+	}
+	s_Metadata.nUptime = (int)( rawtime - s_StartTime );
 	
 #ifdef POSIX
-	// Get memory usage on Linux
+	// Get memory usage on Linux - getrusage is async-signal-safe
 	struct rusage usage;
 	if ( getrusage( RUSAGE_SELF, &usage ) == 0 )
 	{
@@ -242,14 +278,21 @@ void CServerCrashHandler::CollectSystemInfo()
 
 //-----------------------------------------------------------------------------
 // Purpose: Generate unique crash ID
+// Note: Must be signal-safe when called from signal handler
 //-----------------------------------------------------------------------------
 void CServerCrashHandler::GenerateCrashID()
 {
 	time_t rawtime;
 	time( &rawtime );
 	
+#ifdef POSIX
+	// Use getpid() instead of rand() - signal safe
 	V_snprintf( s_Metadata.szCrashID, sizeof( s_Metadata.szCrashID ),
-		"srv_%08x_%04x", (unsigned int)rawtime, rand() % 0xFFFF );
+		"srv_%08x_%04x", (unsigned int)rawtime, (unsigned int)getpid() & 0xFFFF );
+#else
+	V_snprintf( s_Metadata.szCrashID, sizeof( s_Metadata.szCrashID ),
+		"srv_%08x_%04x", (unsigned int)rawtime, (unsigned int)GetCurrentProcessId() & 0xFFFF );
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -266,32 +309,54 @@ const ServerCrashMetadata_t& CServerCrashHandler::GetMetadata()
 bool CServerCrashHandler::WriteCrashReport( const char *pszSignal, void *pFaultAddress )
 {
 #ifdef POSIX
-	// Create crashes directory
-	mkdir( CRASH_LOG_DIR, 0755 );
-
-	// Generate filename with timestamp
+	// Generate filename with timestamp using signal-safe localtime_r
 	time_t tNow = time( NULL );
-	struct tm* pTime = localtime( &tNow );
+	struct tm timeinfo;
+	localtime_r( &tNow, &timeinfo );
 	
-	char szFilename[256];
-	V_snprintf( szFilename, sizeof(szFilename), 
-		"%s/crash_%04d%02d%02d_%02d%02d%02d.log",
-		CRASH_LOG_DIR,
-		pTime->tm_year + 1900, pTime->tm_mon + 1, pTime->tm_mday,
-		pTime->tm_hour, pTime->tm_min, pTime->tm_sec );
-
-	FILE* pFile = fopen( szFilename, "w" );
-	if ( !pFile )
+	char szFilename[512];
+	
+	// Use pre-computed absolute path from Init()
+	if ( s_szCrashLogPath[0] )
 	{
-		// Try current directory as fallback
-		V_snprintf( szFilename, sizeof(szFilename), "crash_%04d%02d%02d_%02d%02d%02d.log",
-			pTime->tm_year + 1900, pTime->tm_mon + 1, pTime->tm_mday,
-			pTime->tm_hour, pTime->tm_min, pTime->tm_sec );
-		pFile = fopen( szFilename, "w" );
+		V_snprintf( szFilename, sizeof(szFilename), 
+			"%s/crash_%04d%02d%02d_%02d%02d%02d.log",
+			s_szCrashLogPath,
+			timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+			timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec );
+	}
+	else
+	{
+		// Fallback to relative path
+		V_snprintf( szFilename, sizeof(szFilename), 
+			"%s/crash_%04d%02d%02d_%02d%02d%02d.log",
+			CRASH_LOG_DIR,
+			timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+			timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec );
 	}
 
-	if ( !pFile )
+	// Use open() instead of fopen() for better signal safety
+	int fd = open( szFilename, O_WRONLY | O_CREAT | O_TRUNC, 0644 );
+	if ( fd < 0 )
+	{
+		// Try /tmp as fallback
+		V_snprintf( szFilename, sizeof(szFilename), 
+			"/tmp/cf2_crash_%04d%02d%02d_%02d%02d%02d.log",
+			timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+			timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec );
+		fd = open( szFilename, O_WRONLY | O_CREAT | O_TRUNC, 0644 );
+	}
+
+	if ( fd < 0 )
 		return false;
+	
+	// Convert fd to FILE* for easier formatting
+	FILE* pFile = fdopen( fd, "w" );
+	if ( !pFile )
+	{
+		close( fd );
+		return false;
+	}
 
 	// Write header
 	fprintf( pFile, "=============================================================\n" );
@@ -375,10 +440,14 @@ bool CServerCrashHandler::WriteCrashReport( const char *pszSignal, void *pFaultA
 		}
 	}
 
-	fprintf( pFile, "\n=============================================================\n" );
+	fprintf( pFile, "=============================================================\n" );
 	fprintf( pFile, "End of crash report\n" );
 	fprintf( pFile, "=============================================================\n" );
 
+	// Ensure data is written to disk
+	fflush( pFile );
+	fsync( fileno( pFile ) );
+	
 	fclose( pFile );
 
 	// Also print to stderr
@@ -387,7 +456,46 @@ bool CServerCrashHandler::WriteCrashReport( const char *pszSignal, void *pFaultA
 	
 	return true;
 #else
-	return false;
+	// Windows: Basic crash logging (full implementation would use SEH)
+	(void)pszSignal;
+	(void)pFaultAddress;
+	
+	// Create crashes directory
+	CreateDirectoryA( CRASH_LOG_DIR, NULL );
+	
+	// Generate filename with timestamp
+	time_t tNow = time( NULL );
+	struct tm timeinfo;
+	gmtime_s( &timeinfo, &tNow );
+	
+	char szFilename[256];
+	V_snprintf( szFilename, sizeof(szFilename), 
+		"%s\\crash_%04d%02d%02d_%02d%02d%02d.log",
+		CRASH_LOG_DIR,
+		timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+		timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec );
+
+	FILE* pFile = fopen( szFilename, "w" );
+	if ( !pFile )
+		return false;
+
+	fprintf( pFile, "=============================================================\n" );
+	fprintf( pFile, "Custom Fortress 2 - Windows Server Crash Report\n" );
+	fprintf( pFile, "=============================================================\n\n" );
+	fprintf( pFile, "Crash ID: %s\n", s_Metadata.szCrashID );
+	fprintf( pFile, "Version: %s\n", s_Metadata.szVersion );
+	fprintf( pFile, "Timestamp: %s\n", s_Metadata.szTimestamp );
+	fprintf( pFile, "Map: %s\n", s_Metadata.szMap[0] ? s_Metadata.szMap : "(none)" );
+	fprintf( pFile, "Players: %d\n", s_Metadata.nPlayerCount );
+	fprintf( pFile, "Uptime: %d seconds\n", s_Metadata.nUptime );
+	fprintf( pFile, "OS: %s\n", s_Metadata.szOS );
+	fprintf( pFile, "\nNote: Full stack traces require Windows-specific implementation.\n" );
+	fprintf( pFile, "=============================================================\n" );
+	
+	fflush( pFile );
+	fclose( pFile );
+	
+	return true;
 #endif
 }
 
