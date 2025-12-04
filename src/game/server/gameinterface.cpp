@@ -78,6 +78,9 @@
 #include "scenefilecache/ISceneFileCache.h"
 #include "tier2/tier2.h"
 #include "particles/particles.h"
+#ifdef LINUX
+#include "cf_crashhandler_server.h"
+#endif
 #include "gamestats.h"
 #include "ixboxsystem.h"
 #include "engine/imatchmaking.h"
@@ -825,6 +828,11 @@ bool CServerGameDLL::DLLInit( CreateInterfaceFn appSystemFactory,
 	gamestatsuploader->InitConnection();
 #endif
 
+#ifdef LINUX
+	// Initialize server crash handler for dedicated Linux servers
+	CServerCrashHandler::Init();
+#endif
+
 	return true;
 }
 
@@ -1208,6 +1216,11 @@ void CServerGameDLL::ServerActivate( edict_t *pEdictList, int edictCount, int cl
 	IGameSystem::LevelInitPostEntityAllSystems();
 	// No more precaching after PostEntityAllSystems!!!
 	CBaseEntity::SetAllowPrecache( false );
+
+#ifdef LINUX
+	// Update crash handler with current map information
+	CServerCrashHandler::SetCurrentMap( STRING( gpGlobals->mapname ) );
+#endif
 
 	// only display the think limit when the game is run with "developer" mode set
 	if ( !g_pDeveloper->GetInt() )

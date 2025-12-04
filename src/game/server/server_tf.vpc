@@ -31,6 +31,12 @@ $Project "Server (TF)"
 	{
 		-$File	"AI_ConCommands.cpp"
 		$File	"ai_relationship.cpp"
+
+		$Folder	"Crash Handler"
+		{
+			$File	"cf_crashhandler_server.h"
+			$File	"cf_crashhandler_server.cpp"
+		}
 		$File	"basegrenade_concussion.cpp"
 		$File	"basegrenade_contact.cpp"
 		$File	"basegrenade_timed.cpp"
