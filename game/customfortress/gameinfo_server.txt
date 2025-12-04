@@ -1,0 +1,62 @@
+"GameInfo"
+{
+	game					"Custom Fortress 2"
+	type 					multiplayer_only
+	nomodels				1
+	nohimodel 				1
+	nocrosshair				0
+	hidden_maps
+	{
+		"test_speakers"		1
+		"test_hardware"		1
+	}
+	nodegraph 				0
+	icon					"resource/icon"
+	GameData				"tf.fgd"
+	AdditionalLocalization	"tf"
+	InstancePath			"maps/instances/"
+	advcrosshair 			1
+	supportsvr				0
+
+	FileSystem
+	{
+		SteamAppId				244310
+		ToolsAppId				244310
+		
+		SearchPaths
+		{
+			// Custom content
+			game+mod+custom_mod    |gameinfo_path|custom/*
+
+			// Mod paths
+			mod+mod_write		|gameinfo_path|.
+			game+game_write		|gameinfo_path|.
+			vgui+vgui_write		|gameinfo_path|.
+			default_write_path	|gameinfo_path|.
+			
+			// Game binaries - mod first, then TF2
+			gamebin				|gameinfo_path|bin
+			gamebin				tf/bin
+
+			// TF2 Dedicated Server VPKs (relative paths - same install directory)
+			game_lv				tf/tf2_lv.vpk
+			game+mod			tf/tf2_textures.vpk
+			game+mod			tf/tf2_sound_vo_english.vpk
+			game+mod			tf/tf2_sound_misc.vpk
+			game+mod+vgui		tf/tf2_misc.vpk
+			game				hl2/hl2_textures.vpk
+			game				hl2/hl2_sound_vo_english.vpk
+			game				hl2/hl2_sound_misc.vpk
+			game+vgui			hl2/hl2_misc.vpk
+			platform+vgui		platform/platform_misc.vpk
+
+			// TF2 loose files
+			game				tf
+			game				hl2
+			platform			platform
+
+			// Downloads
+			game+download		|gameinfo_path|download
+		}
+	}
+}
