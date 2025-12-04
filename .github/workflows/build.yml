@@ -72,9 +72,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: src/_vpc_
-          key: ${{ runner.os }}-vpc-v2-${{ hashFiles('src/**/*.vpc', 'src/**/vpc_scripts/**') }}
+          key: ${{ runner.os }}-vpc-v3-${{ hashFiles('src/**/*.vpc', 'src/**/vpc_scripts/**') }}
           restore-keys: |
-            ${{ runner.os }}-vpc-v2-
+            ${{ runner.os }}-vpc-v3-
 
       - name: Restore Windows build cache
         if: runner.os == 'Windows'
@@ -129,10 +129,6 @@ jobs:
       - name: Build (Linux)
         run: |
           chmod +x ${{ matrix.build_script }}
-          # Debug: check if ccache exists in container
-          echo "=== Checking ccache in container ==="
-          podman run --rm registry.gitlab.steamos.cloud/steamrt/sniper/sdk:latest which ccache || echo "ccache not found in container"
-          podman run --rm registry.gitlab.steamos.cloud/steamrt/sniper/sdk:latest ls -la /usr/lib/ccache/ || echo "No /usr/lib/ccache in container"
           ${{ matrix.build_script }}
         working-directory: src
         shell: bash
@@ -221,7 +217,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: src/_vpc_
-          key: ${{ runner.os }}-vpc-v2-${{ hashFiles('src/**/*.vpc', 'src/**/vpc_scripts/**') }}
+          key: ${{ runner.os }}-vpc-v3-${{ hashFiles('src/**/*.vpc', 'src/**/vpc_scripts/**') }}
 
       - name: Save Windows build cache
         if: runner.os == 'Windows'
