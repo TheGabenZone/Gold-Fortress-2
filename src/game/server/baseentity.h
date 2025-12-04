@@ -1368,6 +1368,24 @@ public:
 		VPhysicsDestroyObject(); 
 	}
 
+	void ScriptToggleCollisionsOn( CBaseEntity * pEntity1, CBaseEntity * pEntity2, bool bEnable )
+	{
+		IPhysicsObject * vPhysObj1 = pEntity1->VPhysicsGetObject();
+		IPhysicsObject * vPhysObj2 = pEntity2->VPhysicsGetObject();
+		// need two different objects to do anything
+		if ( vPhysObj1 && vPhysObj2 && vPhysObj1 != vPhysObj2 )
+		{
+			if ( bEnable )
+			{
+				PhysEnableEntityCollisions( vPhysObj1, vPhysObj2 );
+			}
+			else
+			{
+				PhysDisableEntityCollisions( vPhysObj1, vPhysObj2 );
+			}
+		}
+	}
+
 	void ScriptSetMass( float flMass ) 
 	{ 
 		IPhysicsObject * vPhys = VPhysicsGetObject();
