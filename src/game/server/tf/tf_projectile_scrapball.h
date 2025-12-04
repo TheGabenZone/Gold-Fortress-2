@@ -24,6 +24,9 @@ public:
 	DECLARE_CLASS( CTFProjectile_ScrapBall, CTFBaseRocket );
 	DECLARE_NETWORKCLASS();
 
+	CTFProjectile_ScrapBall();
+	~CTFProjectile_ScrapBall();
+
 	// Creation.
 	static CTFProjectile_ScrapBall *Create( CBaseEntity *pLauncher, const Vector &vecOrigin, const QAngle &vecAngles, CBaseEntity *pOwner = NULL, CBaseEntity *pScorer = NULL );	
 	virtual void Spawn();

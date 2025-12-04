@@ -29,6 +29,24 @@ BEGIN_NETWORK_TABLE( CTFProjectile_ScrapBall, DT_TFProjectile_ScrapBall )
 END_NETWORK_TABLE()
 
 //-----------------------------------------------------------------------------
+// Purpose: Constructor
+//-----------------------------------------------------------------------------
+CTFProjectile_ScrapBall::CTFProjectile_ScrapBall()
+{
+	m_iMetalCost = 0;
+	m_bCritical = false;
+	// m_HitPlayers is auto-initialized by CUtlVector constructor
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Destructor
+//-----------------------------------------------------------------------------
+CTFProjectile_ScrapBall::~CTFProjectile_ScrapBall()
+{
+	m_HitPlayers.Purge();
+}
+
+//-----------------------------------------------------------------------------
 // Purpose:
 //-----------------------------------------------------------------------------
 CTFProjectile_ScrapBall *CTFProjectile_ScrapBall::Create( CBaseEntity *pLauncher, const Vector &vecOrigin, const QAngle &vecAngles, CBaseEntity *pOwner, CBaseEntity *pScorer )
