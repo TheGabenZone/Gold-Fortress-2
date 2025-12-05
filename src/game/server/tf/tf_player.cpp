@@ -19809,6 +19809,10 @@ void CTFPlayer::Taunt( taunts_t iTauntIndex, int iTauntConcept )
 				m_flTauntAttackTime = gpGlobals->curtime + 1.0;
 				m_iTauntAttack = TAUNTATK_HEAVY_RADIAL_BUFF;
 			}
+			else {
+				m_flTauntAttackTime = gpGlobals->curtime + 1.37f;
+				m_iTauntAttack = TAUNTATK_HEAVY_PUNCHOUT_A;
+			}
 		}
 	}
 	else if ( IsPlayerClass( TF_CLASS_SCOUT ) )
@@ -20204,7 +20208,8 @@ void CTFPlayer::DoTauntAttack( void )
 	m_iTauntAttack = TAUNTATK_NONE;
 
 	if ( iTauntAttack == TAUNTATK_PYRO_HADOUKEN || iTauntAttack == TAUNTATK_SPY_FENCING_SLASH_A || 
-		 iTauntAttack == TAUNTATK_SPY_FENCING_SLASH_B || iTauntAttack == TAUNTATK_SPY_FENCING_STAB || iTauntAttack == TAUNTATK_PYRO_GASBLAST || iTauntAttack == TAUNTATK_HEAVY_FALLCRUSH)
+		 iTauntAttack == TAUNTATK_SPY_FENCING_SLASH_B || iTauntAttack == TAUNTATK_SPY_FENCING_STAB || iTauntAttack == TAUNTATK_PYRO_GASBLAST || iTauntAttack == TAUNTATK_HEAVY_FALLCRUSH ||
+		 iTauntAttack == TAUNTATK_HEAVY_PUNCHOUT_A || iTauntAttack == TAUNTATK_HEAVY_PUNCHOUT_B || iTauntAttack == TAUNTATK_HEAVY_PUNCHOUT_C || iTauntAttack == TAUNTATK_HEAVY_PUNCHOUT_KILL )
 	{
 		// Pyro Hadouken fireball attack
 		// Kill all enemies within a small volume in front of the player.
@@ -20252,6 +20257,18 @@ void CTFPlayer::DoTauntAttack( void )
 				else if (iTauntAttack == TAUNTATK_HEAVY_FALLCRUSH)
 				{
 					pList[i]->TakeDamage (CTakeDamageInfo (this, this, GetActiveTFWeapon (), vecForward * 20000, vecPos, 500.0f, DMG_BLAST | DMG_PREVENT_PHYSICS_FORCE, TF_DMG_CUSTOM_TAUNTATK_HIGH_NOON));
+				} 
+				else if (iTauntAttack == TAUNTATK_HEAVY_PUNCHOUT_A || iTauntAttack == TAUNTATK_HEAVY_PUNCHOUT_B || iTauntAttack == TAUNTATK_HEAVY_PUNCHOUT_C)
+				{
+					// No physics push so it doesn't push the player out of the range of the punch
+					pList[i]->TakeDamage(CTakeDamageInfo(this, this, GetActiveTFWeapon(), vecForward * 100, vecPos, 40, DMG_CLUB | DMG_PREVENT_PHYSICS_FORCE, TF_DMG_CUSTOM_TAUNTATK_PUNCHOUT));
+				}
+				else if (iTauntAttack == TAUNTATK_HEAVY_PUNCHOUT_KILL)
+				{
+					//Offset angle to match left hook.
+					AngleVectors( QAngle(-45, m_angEyeAngles[YAW]-35, 0), &vecForward );
+					pList[i]->TakeDamage(CTakeDamageInfo(this, this, GetActiveTFWeapon(), vecForward * 27500, vecPos, 400.0f, DMG_CLUB, TF_DMG_CUSTOM_TAUNTATK_PUNCHOUT));
+					EmitSound( "Weapon_BoxingGloves.CritHit");
 				}
 			}
 		}
@@ -20265,6 +20282,21 @@ void CTFPlayer::DoTauntAttack( void )
 		{
 			m_iTauntAttack = TAUNTATK_SPY_FENCING_STAB;
 			m_flTauntAttackTime = gpGlobals->curtime + 1.73;
+		}
+		else if (iTauntAttack == TAUNTATK_HEAVY_PUNCHOUT_A)
+		{
+			m_iTauntAttack = TAUNTATK_HEAVY_PUNCHOUT_B;
+			m_flTauntAttackTime = gpGlobals->curtime + 0.8f;
+		}
+		else if (iTauntAttack == TAUNTATK_HEAVY_PUNCHOUT_B)
+		{
+			m_iTauntAttack = TAUNTATK_HEAVY_PUNCHOUT_C;
+			m_flTauntAttackTime = gpGlobals->curtime + 0.77f;
+		}
+		else if (iTauntAttack == TAUNTATK_HEAVY_PUNCHOUT_C)
+		{
+			m_iTauntAttack = TAUNTATK_HEAVY_PUNCHOUT_KILL;
+			m_flTauntAttackTime = gpGlobals->curtime + 0.8f;
 		}
 
 		if ( tf_debug_damage.GetBool() )
