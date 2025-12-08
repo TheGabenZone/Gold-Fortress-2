@@ -234,6 +234,31 @@
 		"sound_released"	"UI/buttonclickrelease.wav"
 	}
 	
+	"FixUIButton"
+	{
+		"ControlName"	"CExButton"
+		"fieldName"		"FixUIButton"
+		"xpos"			"245"
+		"ypos"			"360"
+		"zpos"			"1"
+		"wide"			"100"
+		"tall"			"25"
+		"autoResize"	"0"
+		"pinCorner"		"3"
+		"visible"		"1"
+		"enabled"		"1"
+		"tabPosition"	"0"
+		"labelText"		"Fix UI"
+		"font"			"HudFontSmallBold"
+		"textAlignment"	"center"
+		"dulltext"		"0"
+		"brighttext"	"0"
+		"default"		"0"
+		"Command"		"FixUI"
+		"sound_depressed"	"UI/buttonclick.wav"
+		"sound_released"	"UI/buttonclickrelease.wav"
+	}
+	
 	"TooltipPanel"
 	{
 		"ControlName"	"EditablePanel"

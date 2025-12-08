@@ -3219,6 +3219,82 @@ void CTFCreateServerDialog::OnCommand(const char* command)
 		OnClose();
 		return;
 	}
+	else if (!stricmp(command, "FixUI"))
+	{
+		// Reset server_options.txt by copying from default
+		if (g_pFullFileSystem->FileExists(DEFAULT_CREATE_SERVER_FILE, "MOD"))
+		{
+			// Delete existing server_options.txt
+			g_pFullFileSystem->RemoveFile(CREATE_SERVER_FILE, "MOD");
+			
+			// Reload everything
+			DestroyControls();
+			
+			// Reinitialize from default file
+			if (m_pDescription)
+			{
+				delete m_pDescription;
+				m_pDescription = new CInfoDescription();
+			}
+			
+			m_pList = NULL;
+			m_pPages.RemoveAll();
+			
+			KeyValuesAD pFileKV("OPTIONS");
+			if (pFileKV->LoadFromFile(g_pFullFileSystem, DEFAULT_CREATE_SERVER_FILE, "MOD"))
+			{
+				int i = 0;
+				for (KeyValues *pCurTab = pFileKV->GetFirstSubKey(); pCurTab; pCurTab = pCurTab->GetNextKey())
+				{
+					const char *pTabName = pCurTab->GetName();
+					m_pPages.AddToTail(new vgui::PanelListPanel(this, pTabName));
+					AddPage(m_pPages[i], pTabName);
+					
+					for (KeyValues* pCurOption = pCurTab->GetFirstSubKey(); pCurOption; pCurOption = pCurOption->GetNextKey())
+					{
+						const char *pOptionName = pCurOption->GetName();
+						CScriptObject *pObj = new CScriptObject();
+						
+						char type[64];
+						const char *pParamType = pCurOption->GetString("type");
+						Q_strncpy(type, pParamType, sizeof(type));
+						Q_strncpy(pObj->cvarname, pOptionName, sizeof(pObj->cvarname));
+						Q_strncpy(pObj->prompt, pCurOption->GetString("label", "Unnamed"), sizeof(pObj->prompt));
+						Q_strncpy(pObj->tooltip, pCurOption->GetString("tooltip"), sizeof(pObj->tooltip));
+						Q_strncpy(pObj->defValue, pCurOption->GetString("val"), sizeof(pObj->defValue));
+						Q_strncpy(pObj->curValue, pObj->defValue, sizeof(pObj->curValue));
+						pObj->fdefValue = atof(pObj->defValue);
+						
+						pObj->type = pObj->GetType(type);
+						
+						for (KeyValues *pCurParam = pCurOption->GetFirstSubKey(); pCurParam; pCurParam = pCurParam->GetNextKey())
+						{
+							const char *pParamName = pCurParam->GetName();
+							if (!V_stricmp(pParamName, "options"))
+							{
+								for (KeyValues *pCurListItem = pCurParam->GetFirstSubKey(); pCurListItem; pCurListItem = pCurListItem->GetNextKey())
+								{
+									CScriptListItem *pItem;
+									pItem = new CScriptListItem(pCurListItem->GetName(), pCurListItem->GetString());
+									pObj->AddItem(pItem);
+								}
+							}
+						}
+						pObj->objParent = m_pPages[i];
+						m_pDescription->AddObject(pObj);
+					}
+					i++;
+				}
+			}
+			
+			// Recreate controls with default values
+			CreateControls();
+			LoadMapList();
+			InvalidateLayout();
+		}
+		OnClose();
+		return;
+	}
 	else if (!stricmp(command, "CreateServer"))
 	{
 		SaveValues();
