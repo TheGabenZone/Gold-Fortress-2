@@ -1,16 +1,16 @@
 "motd_entries"
 {
-	"last_request_time"		"2025-05-31 03:05:18"
+	"last_request_time"			"2025-12-08 22:00:00"
 	"last_request_language"		"english"
-	"500"
+	"501"
 	{
-		"post_time"		"2025-05-31 03:05:18"
-		"title_english"		"Welcome to our Mod!"
-		"text_english"		"Currently our mod is in OPEN BETA Playtest! Have fun Tossing Bread, playing MvM Versus, and trying out our bugfixes, Community Content, and our new VScript Functions! If you have feedback or wanted to be kept up to day make sure to join our Discord!"
-		"url"		"https://github.com/ALIEN31ITA/Better-Fortress-2"
-		"url2"		"https://discord.gg/NM82mujJsf"
-		"image"		"../logo/bf2_logo_mvmvs"
-		"header_type"		"0"
-		"header_english"		"#TF_ModGameTitle"
+		"post_time"			"2025-12-08 22:00:00"
+		"title_english"		"Workshop Update (Part 1)"
+		"text_english"		"We have implemented basic workshop support! you can upload your maps, and reskins of weapons/cosmetics, stay tuned for the future, you will be able to actually make custom items, with attached Vscript logic to it!."
+		"url"				"https://github.com/ALIEN31ITA/Better-Fortress-2"
+		"url2"				"https://discord.gg/NM82mujJsf"
+		"image"				"../motdpictures/motd_workshop"
+		"header_type"		"1"
+		"header_english"	"#TF_ModGameTitle"
 	}
 }

@@ -114,6 +114,15 @@
 				"width"		"74"
 				"height"	"30"
 		}
+		"pistol_conventional"
+		{
+				"dfile"		"HUD/d_images_mod"
+				"dnegfile"	"HUD/dneg_images_mod"
+				"x"			"212"
+				"y"			"37"
+				"width"		"74"
+				"height"	"32"
+		}
 		
 		//STEAM FRIEND ICON - DO NOT TOUCH
 		"ico_friend_indicator"
