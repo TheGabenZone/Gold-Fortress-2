@@ -201,7 +201,9 @@ enum CFWorkshopItemType_t
 enum CFWorkshopItemState_t
 {
 	CF_WORKSHOP_STATE_NONE = 0,
+	CF_WORKSHOP_STATE_REFRESHING,
 	CF_WORKSHOP_STATE_QUERYING,
+	CF_WORKSHOP_STATE_DOWNLOAD_PENDING,
 	CF_WORKSHOP_STATE_DOWNLOADING,
 	CF_WORKSHOP_STATE_DOWNLOADED,
 	CF_WORKSHOP_STATE_INSTALLING,
@@ -225,6 +227,7 @@ public:
 	const char* GetDescription() const { return m_strDescription.Get(); }
 	const char* GetTags() const { return m_strTags.Get(); }
 	const char* GetPreviewURL() const { return m_strPreviewURL.Get(); }
+	const char* GetOriginalFilename() const { return m_strOriginalFilename.Get(); }
 	uint64 GetFileSize() const { return m_nFileSize; }
 	uint32 GetTimeUpdated() const { return m_rtimeUpdated; }
 	uint64 GetOwnerSteamID() const { return m_ulSteamIDOwner; }
@@ -269,6 +272,7 @@ private:
 	CUtlString m_strDescription;
 	CUtlString m_strTags;
 	CUtlString m_strPreviewURL;
+	CUtlString m_strOriginalFilename;  // For maps: original BSP filename (stored in metadata)
 	
 	uint64 m_nFileSize;
 	uint32 m_rtimeUpdated;
@@ -428,6 +432,18 @@ public:
 	void OnMapLoad(const char* pszMapName);
 	void GameServerSteamAPIActivated();
 	
+	// Workshop map preparation (IServerGameDLL hooks)
+	void PrepareLevelResources(char* pszMapName, size_t nMapNameSize, char* pszMapFile, size_t nMapFileSize);
+	int AsyncPrepareLevelResources(char* pszMapName, size_t nMapNameSize, char* pszMapFile, size_t nMapFileSize, float* flProgress = NULL);
+	int OnCanProvideLevel(char* pMapName, int nMapNameMax);
+	bool GetWorkshopMapDesc(uint32 uIndex, void* pDesc);
+	
+	// Workshop map helpers
+	PublishedFileId_t MapIDFromName(const char* pszMapName);
+	bool CanonicalNameForMap(PublishedFileId_t fileID, const char* pszOriginalFileName, char* pszCanonicalName, size_t nMaxLen);
+	bool IsValidOriginalFileNameForMap(const char* pszFileName);
+	bool IsValidDisplayNameForMap(const char* pszMapName);
+	
 #ifndef CLIENT_DLL
 	// Broadcast workshop map ID to clients
 	void BroadcastWorkshopMapID(PublishedFileId_t fileID);
@@ -492,6 +508,9 @@ private:
 	
 	// Recently unsubscribed items (to prevent re-mounting during refresh)
 	CUtlVector<PublishedFileId_t> m_vecRecentlyUnsubscribed;
+	
+	// Map being prepared for loading
+	PublishedFileId_t m_nPreparingMap;
 	
 	// App ID
 	AppId_t m_nAppID;

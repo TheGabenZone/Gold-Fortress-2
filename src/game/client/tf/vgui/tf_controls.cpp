@@ -3350,8 +3350,28 @@ void CTFCreateServerDialog::OnCommand(const char* command)
 						pStatsPanel->MoveToFront();
 					}
 					
-					// Change the level with loading bar enabled
-					engine->ClientCmd_Unrestricted(CFmtStr("progress_enable; map %s", pItem->szItemText));
+					// Check if this is a Workshop map by looking for the map in our list
+					bool bIsWorkshopMap = false;
+					PublishedFileId_t workshopFileID = 0;
+					FOR_EACH_VEC( m_vecAllMaps, i )
+					{
+						if ( V_stricmp( m_vecAllMaps[i].Get(), pItem->szItemText ) == 0 )
+						{
+							bIsWorkshopMap = m_vecIsWorkshopMap[i];
+							workshopFileID = m_vecMapFileIDs[i];
+							break;
+						}
+					}
+					
+					// Use host_workshop_map for Workshop maps, regular map command for others
+					if ( bIsWorkshopMap && workshopFileID != 0 )
+					{
+						engine->ClientCmd_Unrestricted(CFmtStr("progress_enable; host_workshop_map %llu", workshopFileID));
+					}
+					else
+					{
+						engine->ClientCmd_Unrestricted(CFmtStr("progress_enable; map %s", pItem->szItemText));
+					}
 				}
 			}
 		}

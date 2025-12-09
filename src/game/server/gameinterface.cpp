@@ -98,7 +98,7 @@
 #include "tf/tf_gc_server.h"
 #include "tf_gamerules.h"
 #include "player_vs_environment/tf_population_manager.h"
-#include "workshop/maps_workshop.h"
+#include "tf/cf_workshop_manager.h"
 
 extern ConVar tf_mm_trusted;
 extern ConVar tf_mm_servermode;
@@ -1249,7 +1249,7 @@ void CServerGameDLL::GameServerSteamAPIActivated( void )
 #ifdef TF_DLL
 	GCClientSystem()->GameServerActivate();
 	InventoryManager()->GameServerSteamAPIActivated();
-	TFMapsWorkshop()->GameServerSteamAPIActivated();
+	CFWorkshop()->GameServerSteamAPIActivated();
 #endif
 }
 
@@ -2045,7 +2045,7 @@ void CServerGameDLL::PrepareLevelResources( /* in/out */ char *pszMapName, size_
                                             /* in/out */ char *pszMapFile, size_t nMapFileSize )
 {
 #ifdef TF_DLL
-	TFMapsWorkshop()->PrepareLevelResources( pszMapName, nMapNameSize, pszMapFile, nMapFileSize );
+	CFWorkshop()->PrepareLevelResources( pszMapName, nMapNameSize, pszMapFile, nMapFileSize );
 #endif // TF_DLL
 }
 
@@ -2056,7 +2056,7 @@ CServerGameDLL::AsyncPrepareLevelResources( /* in/out */ char *pszMapName, size_
                                             float *flProgress /* = NULL */ )
 {
 #ifdef TF_DLL
-	return TFMapsWorkshop()->AsyncPrepareLevelResources( pszMapName, nMapNameSize, pszMapFile, nMapFileSize, flProgress );
+	return (IServerGameDLL::ePrepareLevelResourcesResult)CFWorkshop()->AsyncPrepareLevelResources( pszMapName, nMapNameSize, pszMapFile, nMapFileSize, flProgress );
 #endif // TF_DLL
 
 	if ( flProgress )
@@ -2070,7 +2070,7 @@ CServerGameDLL::AsyncPrepareLevelResources( /* in/out */ char *pszMapName, size_
 IServerGameDLL::eCanProvideLevelResult CServerGameDLL::CanProvideLevel( /* in/out */ char *pMapName, int nMapNameMax )
 {
 #ifdef TF_DLL
-	return TFMapsWorkshop()->OnCanProvideLevel( pMapName, nMapNameMax );
+	return (IServerGameDLL::eCanProvideLevelResult)CFWorkshop()->OnCanProvideLevel( pMapName, nMapNameMax );
 #endif // TF_DLL
 	return IServerGameDLL::eCanProvideLevel_CannotProvide;
 }
@@ -2090,7 +2090,7 @@ bool CServerGameDLL::IsManualMapChangeOkay( const char **pszReason )
 bool CServerGameDLL::GetWorkshopMap( uint32 uIndex, WorkshopMapDesc_t *pDesc )
 {
 #ifdef TF_DLL
-	return TFMapsWorkshop()->GetWorkshopMapDesc( uIndex, pDesc );
+	return CFWorkshop()->GetWorkshopMapDesc( uIndex, pDesc );
 #endif // TF_DLL
 	return false;
 }

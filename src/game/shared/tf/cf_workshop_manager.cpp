@@ -9,6 +9,9 @@
 #include "workshop/ugc_utils.h"
 #include "filesystem.h"
 #include "tier2/fileutils.h"
+#include "tier1/convar.h"
+#include "tier0/icommandline.h"
+#include "tier0/threadtools.h"
 #include "econ/econ_item_schema.h"
 #include "tf_item_inventory.h"
 
@@ -16,6 +19,7 @@
 #include "c_tf_player.h"
 #else
 #include "tf_player.h"
+#include "steam/steam_gameserver.h"
 #endif
 
 // memdbgon must be the last include file in a .cpp file!!!
@@ -247,6 +251,14 @@ void CCFWorkshopItem::Steam_OnQueryDetails(SteamUGCQueryCompleted_t* pResult, bo
 		m_strPreviewURL = szPreviewURL;
 	}
 
+	// Get metadata (for maps, this contains the original BSP filename)
+	char szMetadata[k_cchDeveloperMetadataMax];
+	if (pUGC->GetQueryUGCMetadata(pResult->m_handle, 0, szMetadata, sizeof(szMetadata)))
+	{
+		m_strOriginalFilename = szMetadata;
+		CFWorkshopDebug("Item metadata: %s\n", szMetadata);
+	}
+
 	// Check subscription status
 	m_bSubscribed = IsSubscribed();
 
@@ -439,6 +451,7 @@ CCFWorkshopManager::CCFWorkshopManager()
 	, m_callbackItemInstalled_Server(this, &CCFWorkshopManager::Steam_OnItemInstalled)
 	, m_mapItems(0, 0, PublishedFileId_Less)
 	, m_mapActiveSkins(DefLessFunc(CUtlString))
+	, m_nPreparingMap(k_PublishedFileIdInvalid)
 	, m_nAppID(0)
 	, m_bInitialized(false)
 	, m_bRefreshQueued(false)
@@ -539,6 +552,48 @@ void CCFWorkshopManager::InitWorkshop()
 		CFWorkshopWarning("Failed to get Steam UGC interface\n");
 		return;
 	}
+
+	// For dedicated servers, initialize BInitWorkshopForGameServer to enable automatic Workshop downloads
+#ifdef GAME_DLL
+	if (engine->IsDedicatedServer())
+	{
+		int i = CommandLine()->FindParm("-ugcpath");
+		if (i)
+		{
+			const char* pUGCPath = CommandLine()->GetParm(i + 1);
+			if (pUGCPath)
+			{
+				g_pFullFileSystem->CreateDirHierarchy(pUGCPath, "GAME");
+				char szFullPath[MAX_PATH] = { 0 };
+				g_pFullFileSystem->RelativePathToFullPath(pUGCPath, "GAME", szFullPath, sizeof(szFullPath));
+				if (szFullPath[0])
+				{
+					// Use App ID 3768450 (Custom Fortress 2) and the specified path
+					if (pUGC->BInitWorkshopForGameServer(m_nAppID, szFullPath))
+					{
+						CFWorkshopMsg("Initialized Workshop for dedicated server (UGC path: %s)\n", szFullPath);
+					}
+					else
+					{
+						CFWorkshopWarning("Failed to initialize Workshop for dedicated server\n");
+					}
+				}
+				else
+				{
+					CFWorkshopWarning("Could not resolve -ugcpath to absolute path: %s\n", pUGCPath);
+				}
+			}
+			else
+			{
+				CFWorkshopWarning("Empty -ugcpath passed, using default\n");
+			}
+		}
+		else
+		{
+			CFWorkshopMsg("No -ugcpath specified for dedicated server, using default Workshop directory\n");
+		}
+	}
+#endif
 
 	CFWorkshopMsg("Workshop initialized successfully\n");
 	m_bInitialized = true;
@@ -3182,4 +3237,365 @@ CON_COMMAND(cf_workshop_refresh_skins, "Refresh all weapon skins")
 {
 	CFWorkshop()->RefreshWeaponSkins();
 }
+
+#endif // CLIENT_DLL
+
+//-----------------------------------------------------------------------------
+// Workshop Map Support (IServerGameDLL hooks)
+//-----------------------------------------------------------------------------
+
+// Parse Workshop map ID from name (e.g., "workshop/1234567" or "workshop/cp_mymap.ugc1234567")
+PublishedFileId_t CCFWorkshopManager::MapIDFromName(const char* pszMapName)
+{
+	if (!pszMapName || !pszMapName[0])
+		return k_PublishedFileIdInvalid;
+
+	// Convert to lowercase for consistent parsing
+	CUtlString mapName = pszMapName;
+	mapName.ToLower();
+
+	const char szWorkshopPrefix[] = "workshop/";
+	const size_t nPrefixLen = sizeof(szWorkshopPrefix) - 1;
+
+	if (V_strnicmp(mapName.Get(), szWorkshopPrefix, nPrefixLen) != 0)
+	{
+		CFWorkshopDebug("Map '%s' does not appear to be a Workshop map -- no workshop/ prefix\n", pszMapName);
+		return k_PublishedFileIdInvalid;
+	}
+
+	// Check canonical format: workshop/cp_anyname.ugc1234
+	const char szUGCSuffix[] = ".ugc";
+	const size_t nSuffixLen = sizeof(szUGCSuffix) - 1;
+
+	CUtlString strID;
+	const char* pszUGCSuffix = V_strstr(mapName.Get(), szUGCSuffix);
+	if (pszUGCSuffix && V_strlen(pszUGCSuffix) >= nSuffixLen + 1)
+	{
+		// Found .ugc suffix, extract ID after it
+		strID = pszUGCSuffix + nSuffixLen;
+
+		// Validate that the base name is a legal workshop map name
+		CUtlString baseMapName;
+		baseMapName.SetDirect(mapName.Get() + nPrefixLen, (int)(pszUGCSuffix - (mapName.Get() + nPrefixLen)));
+		if (!IsValidDisplayNameForMap(baseMapName.Get()))
+		{
+			CFWorkshopDebug("Map '%s' looks like a Workshop map, but '%s' is not a legal Workshop map name\n",
+				pszMapName, baseMapName.Get());
+			return k_PublishedFileIdInvalid;
+		}
+	}
+	else
+	{
+		// Assume workshop/12345 shorthand
+		strID = mapName.Get() + nPrefixLen;
+	}
+
+	// Verify it's all digits
+	for (int i = 0; i < strID.Length(); i++)
+	{
+		if (strID[i] < '0' || strID[i] > '9')
+			return k_PublishedFileIdInvalid;
+	}
+
+	// Parse the ID
+	PublishedFileId_t nMapID = k_PublishedFileIdInvalid;
+	sscanf(strID.Get(), "%llu", &nMapID);
+	return nMapID;
+}
+
+// Generate canonical name for a Workshop map (e.g., "workshop/cp_mymap.ugc1234567")
+bool CCFWorkshopManager::CanonicalNameForMap(PublishedFileId_t fileID, const char* pszOriginalFileName, char* pszCanonicalName, size_t nMaxLen)
+{
+	if (!IsValidOriginalFileNameForMap(pszOriginalFileName))
+	{
+		CFWorkshopWarning("Invalid Workshop map name %llu [ %s ]\n", fileID, pszOriginalFileName);
+		return false;
+	}
+
+	// Extract base name without extension
+	char szBase[MAX_PATH];
+	V_FileBase(pszOriginalFileName, szBase, sizeof(szBase));
+
+	// Format as workshop/basename.ugcID
+	int len = V_snprintf(pszCanonicalName, nMaxLen, "workshop/%s.ugc%llu", szBase, fileID);
+	if (len >= (int)nMaxLen || len >= MAX_PATH)
+	{
+		Assert(len < MAX_PATH);
+		return false;
+	}
+
+	return true;
+}
+
+// Validate original filename for Workshop map
+bool CCFWorkshopManager::IsValidOriginalFileNameForMap(const char* pszFileName)
+{
+	if (!pszFileName || !pszFileName[0])
+		return false;
+
+	// Must end with .bsp
+	const char* pExt = V_GetFileExtension(pszFileName);
+	if (!pExt || V_stricmp(pExt, "bsp") != 0)
+		return false;
+
+	// Get filename without extension
+	char szBase[MAX_PATH];
+	V_FileBase(pszFileName, szBase, sizeof(szBase));
+
+	return IsValidDisplayNameForMap(szBase);
+}
+
+// Validate display name for Workshop map (base filename without extension)
+bool CCFWorkshopManager::IsValidDisplayNameForMap(const char* pszMapName)
+{
+	if (!pszMapName || !pszMapName[0])
+		return false;
+
+	// Check length (reasonable limits)
+	int len = V_strlen(pszMapName);
+	if (len < 3 || len > 64)
+		return false;
+
+	// Must start with alphanumeric
+	if (!V_isalnum(pszMapName[0]))
+		return false;
+
+	// Only allow alphanumeric, underscore, and hyphen
+	for (int i = 0; i < len; i++)
+	{
+		char c = pszMapName[i];
+		if (!V_isalnum(c) && c != '_' && c != '-')
+			return false;
+	}
+
+	return true;
+}
+
+// Async preparation of Workshop map resources (called by engine before map load)
+int CCFWorkshopManager::AsyncPrepareLevelResources(char* pszMapName, size_t nMapNameSize,
+	char* pszMapFile, size_t nMapFileSize, float* flProgress)
+{
+	// Parse Workshop map ID from name
+	PublishedFileId_t nMapID = MapIDFromName(pszMapName);
+
+	// Not a Workshop map
+	if (nMapID == k_PublishedFileIdInvalid)
+	{
+		if (flProgress)
+			*flProgress = 1.f;
+		m_nPreparingMap = k_PublishedFileIdInvalid;
+		return 0; // ePrepareLevelResources_Prepared
+	}
+
+	bool bNewPrepare = (m_nPreparingMap != nMapID);
+	m_nPreparingMap = nMapID;
+
+	CFWorkshopDebug("AsyncPrepareLevelResources for [ %s ] (ID: %llu)\n", pszMapName, nMapID);
+
+	// Find or create Workshop item tracking
+	unsigned short nIndex = m_mapItems.Find(nMapID);
+	CCFWorkshopItem* pItem = NULL;
+
+	if (nIndex == m_mapItems.InvalidIndex())
+	{
+		CFWorkshopMsg("Map ID %llu isn't tracked, adding\n", nMapID);
+		pItem = new CCFWorkshopItem(nMapID, CF_WORKSHOP_TYPE_MAP);
+		m_mapItems.Insert(nMapID, pItem);
+	}
+	else
+	{
+		pItem = m_mapItems[nIndex];
+	}
+
+	if (bNewPrepare)
+	{
+		// Start fresh query for new prepare
+		pItem->Refresh();
+		pItem->m_bHighPriority = true;
+	}
+
+	// Check item state
+	CFWorkshopItemState_t eState = pItem->GetState();
+
+	if (eState == CF_WORKSHOP_STATE_REFRESHING || eState == CF_WORKSHOP_STATE_NONE)
+	{
+		if (flProgress)
+			*flProgress = 0.f;
+		return 1; // ePrepareLevelResources_InProgress
+	}
+
+	if (eState == CF_WORKSHOP_STATE_DOWNLOADING || eState == CF_WORKSHOP_STATE_DOWNLOAD_PENDING)
+	{
+		if (flProgress)
+			*flProgress = pItem->GetDownloadProgress();
+		return 1; // ePrepareLevelResources_InProgress
+	}
+
+	if (eState == CF_WORKSHOP_STATE_DOWNLOADED || eState == CF_WORKSHOP_STATE_INSTALLED)
+	{
+		// Get install info
+		ISteamUGC* pUGC = GetSteamUGC();
+		if (!pUGC)
+		{
+			CFWorkshopWarning("Failed to get Steam UGC interface\n");
+			if (flProgress)
+				*flProgress = 1.f;
+			m_nPreparingMap = k_PublishedFileIdInvalid;
+			return 0; // ePrepareLevelResources_Prepared (will fail)
+		}
+
+		uint64 nUGCSize = 0;
+		uint32 nTimestamp = 0;
+		char szFolder[MAX_PATH] = { 0 };
+		if (!pUGC->GetItemInstallInfo(nMapID, &nUGCSize, szFolder, sizeof(szFolder), &nTimestamp))
+		{
+			CFWorkshopWarning("GetItemInstallInfo failed for Workshop map %llu\n", nMapID);
+			if (flProgress)
+				*flProgress = 1.f;
+			m_nPreparingMap = k_PublishedFileIdInvalid;
+			return 0; // ePrepareLevelResources_Prepared (will fail)
+		}
+
+		// Get the original filename from item metadata/tags
+		const char* pszOriginalName = pItem->GetOriginalFilename();
+		if (!pszOriginalName || !pszOriginalName[0])
+		{
+			CFWorkshopWarning("Workshop map %llu has no original filename metadata\n", nMapID);
+			if (flProgress)
+				*flProgress = 1.f;
+			m_nPreparingMap = k_PublishedFileIdInvalid;
+			return 0; // ePrepareLevelResources_Prepared (will fail)
+		}
+
+		// Build full path to BSP file
+		char szFullPath[MAX_PATH];
+		V_MakeAbsolutePath(szFullPath, sizeof(szFullPath), pszOriginalName, szFolder);
+
+		// Generate canonical name
+		char szCanonicalName[MAX_PATH];
+		if (!CanonicalNameForMap(nMapID, pszOriginalName, szCanonicalName, sizeof(szCanonicalName)))
+		{
+			CFWorkshopWarning("Failed to generate canonical name for Workshop map %llu\n", nMapID);
+			if (flProgress)
+				*flProgress = 1.f;
+			m_nPreparingMap = k_PublishedFileIdInvalid;
+			return 0; // ePrepareLevelResources_Prepared (will fail)
+		}
+
+		// Return the canonical name and file path
+		V_strncpy(pszMapName, szCanonicalName, nMapNameSize);
+		V_strncpy(pszMapFile, szFullPath, nMapFileSize);
+
+		CFWorkshopMsg("Successfully prepared Workshop map from file ID %llu: %s\n", nMapID, szCanonicalName);
+
+		if (flProgress)
+			*flProgress = 1.f;
+		m_nPreparingMap = k_PublishedFileIdInvalid;
+		return 0; // ePrepareLevelResources_Prepared
+	}
+
+	// Error state
+	CFWorkshopWarning("Workshop map %llu is in error state\n", nMapID);
+	if (flProgress)
+		*flProgress = 1.f;
+	m_nPreparingMap = k_PublishedFileIdInvalid;
+	return 0; // ePrepareLevelResources_Prepared (will fail)
+}
+
+// Synchronous preparation wrapper (blocks until ready)
+void CCFWorkshopManager::PrepareLevelResources(char* pszMapName, size_t nMapNameSize,
+	char* pszMapFile, size_t nMapFileSize)
+{
+	PublishedFileId_t nWorkshopID = MapIDFromName(pszMapName);
+	if (nWorkshopID == k_PublishedFileIdInvalid)
+		return;
+
+#ifdef GAME_DLL
+	// If dedicated server, wait for Steam connection
+	if (engine->IsDedicatedServer())
+	{
+		if (!steamgameserverapicontext || !steamgameserverapicontext->SteamGameServer())
+		{
+			CFWorkshopWarning("No Steam connection in PrepareLevelResources, Workshop map loads will fail\n");
+			return;
+		}
+
+		// Wait for login to finish
+		if (!steamgameserverapicontext->SteamGameServer()->BLoggedOn())
+		{
+			CFWorkshopMsg("Waiting for Steam connection...\n");
+			while (!steamgameserverapicontext->SteamGameServer()->BLoggedOn())
+			{
+				ThreadSleep(10);
+			}
+		}
+	}
 #endif
+
+	CFWorkshopMsg("Preparing Workshop map ID %llu...\n", nWorkshopID);
+
+	// Loop until async prepare returns ready
+	while (AsyncPrepareLevelResources(pszMapName, nMapNameSize, pszMapFile, nMapFileSize) == 1)
+	{
+		ThreadSleep(10);
+#ifdef GAME_DLL
+		if (engine->IsDedicatedServer())
+		{
+			SteamGameServer_RunCallbacks();
+		}
+		else
+#endif
+		{
+			SteamAPI_RunCallbacks();
+		}
+	}
+}
+
+// Check if we can provide a Workshop map
+int CCFWorkshopManager::OnCanProvideLevel(char* pMapName, int nMapNameMax)
+{
+	PublishedFileId_t nWorkshopID = MapIDFromName(pMapName);
+	if (nWorkshopID == k_PublishedFileIdInvalid)
+		return 2; // eCanProvideLevel_CannotProvide
+
+	unsigned short nIndex = m_mapItems.Find(nWorkshopID);
+	if (nIndex == m_mapItems.InvalidIndex())
+	{
+		// Looks like a Workshop map, but not currently available
+		return 1; // eCanProvideLevel_Possibly
+	}
+
+	CCFWorkshopItem* pItem = m_mapItems[nIndex];
+	const char* pszOriginalName = pItem->GetOriginalFilename();
+
+	// Generate canonical name if known
+	if (pszOriginalName && pszOriginalName[0])
+	{
+		char szCanonicalName[MAX_PATH];
+		if (CanonicalNameForMap(nWorkshopID, pszOriginalName, szCanonicalName, sizeof(szCanonicalName)))
+		{
+			V_strncpy(pMapName, szCanonicalName, nMapNameMax);
+		}
+	}
+
+	if (pItem->GetState() != CF_WORKSHOP_STATE_DOWNLOADED && pItem->GetState() != CF_WORKSHOP_STATE_INSTALLED)
+	{
+		return 1; // eCanProvideLevel_Possibly
+	}
+
+	if (!pszOriginalName || !pszOriginalName[0])
+	{
+		CFWorkshopWarning("Map is marked available but has no proper name configured [ %llu ]\n", nWorkshopID);
+		return 1; // eCanProvideLevel_Possibly
+	}
+
+	return 0; // eCanProvideLevel_CanProvide
+}
+
+// Get Workshop map description for server browser
+bool CCFWorkshopManager::GetWorkshopMapDesc(uint32 uIndex, void* pDesc)
+{
+	// This would be used for listing Workshop maps in server browser
+	// For now, return false (not implemented yet)
+	return false;
+}
