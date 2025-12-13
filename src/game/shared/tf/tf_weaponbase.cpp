@@ -95,6 +95,7 @@ extern ConVar tf_weapon_criticals_bucket_bottom;
 
 #ifdef CLIENT_DLL
 extern ConVar cl_crosshair_file;
+extern ConVar cl_muzzleflash_dlight_1st;
 #endif
 
 //=============================================================================
@@ -3336,12 +3337,11 @@ void CTFWeaponBase::CreateMuzzleFlashEffects( C_BaseEntity *pAttachEnt, int nInd
 	if ( iMuzzleFlashAttachment > 0 && (pszMuzzleFlashEffect || pszMuzzleFlashModel || pszMuzzleFlashParticleEffect ) )
 	{
 		pAttachEnt->GetAttachment( iMuzzleFlashAttachment, vecOrigin, angAngles );
-
 		// Muzzleflash light
-/*
+	if ( cl_muzzleflash_dlight_1st.GetBool() == true && IsFirstPersonView() ) {
 		CLocalPlayerFilter filter;
-		TE_DynamicLight( filter, 0.0f, &vecOrigin, 255, 192, 64, 5, 70.0f, 0.05f, 70.0f / 0.05f, LIGHT_INDEX_MUZZLEFLASH );
-*/
+		TE_DynamicLight( filter, 0.0f, &vecOrigin, 255, 192, 64, 5, RandomInt( 35, 105 ), 0.05f, 70.0f / 0.05f, LIGHT_INDEX_MUZZLEFLASH );
+	}
 
 		if ( pszMuzzleFlashEffect )
 		{
