@@ -512,6 +512,7 @@ FodyWeavers.xsd
 /game/goldfortress/cfg/user.scr
 /game/goldfortress/cfg/settings.scr
 /game/goldfortress/cfg/local_loadout.txt
+/game/steam_appid.txt
 /game/platform/config/Serverbrowser.vdf
 /game/platform/config/InGamedialogconfig.vdf
 /game/goldfortress/tf2_playerstats.dmx
