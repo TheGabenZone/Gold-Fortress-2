@@ -1,4 +1,4 @@
-$Macro OUTBINNAME "customfortress"
+$Macro OUTBINNAME "goldfortress"
 
 $Conditional "MOD_LAUNCHER" "1"
 
@@ -10,8 +10,8 @@ $Configuration
 	{
 		//STEAM //APPIDD //RELEASE
 		// uncomment when planning to release on Steam publicly or privately
-		$PreprocessorDefinitions	"$BASE;MOD_APPID=3768450"
-		//$PreprocessorDefinitions	"$BASE;MOD_APPID=243750"
+		//$PreprocessorDefinitions	"$BASE;MOD_APPID=3768450"
+		$PreprocessorDefinitions	"$BASE;MOD_APPID=243750"
 	}
 }
 

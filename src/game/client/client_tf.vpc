@@ -6,7 +6,7 @@
 
 $Macro SRCDIR		"..\.."
 $Macro GAMENAME 	"tf" [!$SOURCESDK]
-$Macro GAMENAME 	"customfortress" [$SOURCESDK]
+$Macro GAMENAME 	"goldfortress" [$SOURCESDK]
 
 // This code currently only builds on Windows (itemtest_lib and dependencies)
 $Conditional WORKSHOP_IMPORT_ENABLE	1 [$WINDOWS && !$SOURCESDK]
@@ -54,6 +54,7 @@ $Project "Client (TF)"
 		$File	"cf_crashupload.cpp"
 		$File	"cf_sentry.h"
 		$File	"cf_sentry.cpp"
+		$File	"cf_localization_changer.cpp"
 
 		$Folder "FC"
 		{

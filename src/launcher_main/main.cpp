@@ -450,9 +450,10 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 #define LAUNCHER_DLL_PATH	"%s\\" PLATFORM_BIN_DIR "\\launcher.dll"
 #define LAUNCHER_PATH		"%s\\" PLATFORM_BIN_DIR
+#define GOLDFORTRESS_BIN_PATH "%s\\goldfortress\\" PLATFORM_BIN_DIR
 
-	// Extend PATH with bin\x64 (or bin\win32)
-	_snprintf( szBuffer, sizeof( szBuffer ), "PATH=" LAUNCHER_PATH ";%s", pBinaryGameDir, pPath );
+	// Extend PATH with bin\x64 (or bin\win32) and goldfortress\bin\x64
+	_snprintf( szBuffer, sizeof( szBuffer ), "PATH=" LAUNCHER_PATH ";" GOLDFORTRESS_BIN_PATH ";%s", pBinaryGameDir, pBinaryGameDir, pPath );
 	szBuffer[sizeof( szBuffer ) - 1] = '\0';
 	_putenv( szBuffer );
 
@@ -579,7 +580,7 @@ static void WaitForDebuggerConnect( int argc, char *argv[], int time )
 
 static const char *GetExecutableModName( char *pszExePath )
 {
-	static char s_szFinalFilename[ MAX_PATH + 1 ] = "customfortress";
+	static char s_szFinalFilename[ MAX_PATH + 1 ] = "goldfortress";
 
 	char szExePath[ MAX_PATH + 1 ];
 	strncpy( szExePath, pszExePath, sizeof( szExePath ) );
@@ -637,7 +638,7 @@ int main( int argc, char *argv[] )
 	}
 
 	char szExecutable[8192];
-	snprintf(szExecutable, sizeof(szExecutable), "%s/customfortress.sh", szGameInstallDir );
+	snprintf(szExecutable, sizeof(szExecutable), "%s/goldfortress.sh", szGameInstallDir );
 
 	std::vector<char *> new_argv;
 
