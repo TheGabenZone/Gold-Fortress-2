@@ -6,7 +6,7 @@ Gold Fortress 2 Sourcemod is a Sourcemod that tries to combine every TF2 SDK mod
 # MODS FEATURED:
 - Custom Fortress 2 by [Alien31](https://github.com/ALIEN31ITA)
 - Fortress Connected by [Vvis](https://github.com/Lambdagon) (WIP)
-- Team Fortress 2 Classified by [Eminoma](https://store.steampowered.com/developer/EMINOMA) (WIP)
+- Team Fortress 2 Classic by [Eminoma](https://store.steampowered.com/developer/EMINOMA) (WIP)
 - Team Comtress 2 by [Mastercoms](https://github.com/mastercoms) (WIP)
 - Others will be added soon
 
