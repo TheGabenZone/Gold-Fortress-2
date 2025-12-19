@@ -12,64 +12,31 @@ jobs:
     runs-on: windows-latest
     
     steps:
-    - name: Checkout repository
+    - name: Checkout code
       uses: actions/checkout@v4
       with:
         submodules: recursive
     
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
-    
-    - name: Setup Visual Studio environment
-      uses: ilammy/msvc-dev-cmd@v1
       with:
-        arch: x64
+        vs-version: '[17.0,18.0)'
     
-    - name: Generate VPC projects
-      working-directory: ${{ github.workspace }}/src
-      run: |
-        .\devtools\bin\vpc.exe /tf /define:SOURCESDK /define:DISCORD_RPC /define:TF_RAID_MODE /define:SDK_TEMP_PATCH +game /mksln goldfortress2.sln
-      shell: cmd
+    - name: Setup NuGet
+      uses: nuget/setup-nuget@v2
     
-    - name: Build solution (x64 Release)
-      working-directory: ${{ github.workspace }}/src
-      run: |
-        msbuild goldfortress2.sln /p:Configuration=Release /p:Platform=x64 /m /v:minimal
-      shell: cmd
-    
-    - name: Build solution (x64 Debug)
-      working-directory: ${{ github.workspace }}/src
-      run: |
-        msbuild goldfortress2.sln /p:Configuration=Debug /p:Platform=x64 /m /v:minimal
-      continue-on-error: true
-      shell: cmd
-    
-    - name: Collect build artifacts (Release)
-      working-directory: ${{ github.workspace }}
-      run: |
-        mkdir artifacts
-        mkdir artifacts\game
-        mkdir artifacts\game\bin
-        if exist "game\goldfortress\bin\*.dll" xcopy /Y /S "game\goldfortress\bin\*.dll" "artifacts\game\bin\"
-        if exist "game\bin\x64\*.dll" xcopy /Y /S "game\bin\x64\*.dll" "artifacts\game\bin\"
-        if exist "src\lib\public\*.dll" xcopy /Y /S "src\lib\public\*.dll" "artifacts\game\bin\"
-      continue-on-error: true
-      shell: cmd
-    
-    - name: Upload build artifacts
+    - name: Restore NuGet packages
+      run: nuget restore src\goldfortress2.sln
+      
+    - name: Build Solution (Release/win64)
+      run: msbuild src\goldfortress2.sln /p:Configuration=Release /p:Platform=win64 /m /v:minimal
+      
+    - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: gold-fortress-2-windows-x64
-        path: artifacts/
-        if-no-files-found: warn
-        retention-days: 30
-    
-    - name: Upload game files
-      uses: actions/upload-artifact@v4
-      with:
-        name: gold-fortress-2-game-files
+        name: goldfortress2-windows-x64
         path: |
-          game/goldfortress/bin/
-          game/bin/x64/
-        if-no-files-found: warn
+          game/customfortress/bin/**
+          game/bin/x64/**
         retention-days: 30
+        if-no-files-found: warn
